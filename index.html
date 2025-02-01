@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Financeiro - Carolina e Eduardo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .timeline-container {
+            grid-column: 1 / -1;  /* Ocupa todas as colunas */
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .timeline-chart {
+            width: 100%;
+            height: 300px;  /* Altura fixa para o gráfico de timeline */
+        }
+
+        .table-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8f9fa;
+        }
+
+        .amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .label {
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Dashboard Financeiro</h1>
+        </div>
+
+        <div class="cards-container">
+            <div class="card">
+                <div class="label">Total de Despesas</div>
+                <div class="amount">R$ 0,00</div>
+            </div>
+            <div class="card">
+                <div class="label">Despesas Carolina</div>
+                <div class="amount">R$ 0,00</div>
+            </div>
+            <div class="card">
+                <div class="label">Despesas Eduardo</div>
+                <div class="amount">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="timeline-container">
+            <h3>Timeline Mensal de Gastos</h3>
+            <div class="timeline-chart">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>Despesas por Categoria</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Distribuição por Responsável</h3>
+                <canvas id="responsibleChart"></canvas>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3>Detalhamento das Despesas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Categoria</th>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Quem Gerou</th>
+                        <th>Quem Pagou</th>
+                    </tr>
+                </thead>
+                <tbody id="expensesTable">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Dados mockados para exemplo
+        const mockData = {
+            expenses: [
+                { date: '2024-01-01', category: 'IPTU', type: 'Moradia', amount: 500, generator: 'Conjunto', payer: 'Eduardo' },
+                { date: '2024-01-01', category: 'Condomínio', type: 'Moradia', amount: 800, generator: 'Conjunto', payer: 'Carolina' },
+                { date: '2024-01-01', category: 'Luz', type: 'Utilidades', amount: 200, generator: 'Conjunto', payer: 'Eduardo' },
+                { date: '2024-01-01', category: 'Empregada', type: 'Serviços', amount: 1500, generator: 'Conjunto', payer: 'Carolina' },
+                { date: '2024-01-01', category: 'Babá', type: 'Serviços', amount: 2000, generator: 'Conjunto', payer: 'Eduardo' },
+                { date: '2024-01-01', category: 'Supermercado', type: 'Alimentação', amount: 1200, generator: 'Conjunto', payer: 'Carolina' },
+                { date: '2024-01-01', category: 'Internet', type: 'Utilidades', amount: 150, generator: 'Conjunto', payer: 'Eduardo' },
+            ]
+        };
+
+        // Atualizar cards de resumo
+        function updateSummaryCards() {
+            const total = mockData.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+            const carolinaTotal = mockData.expenses
+                .filter(expense => expense.payer === 'Carolina')
+                .reduce((sum, expense) => sum + expense.amount, 0);
+            const eduardoTotal = mockData.expenses
+                .filter(expense => expense.payer === 'Eduardo')
+                .reduce((sum, expense) => sum + expense.amount, 0);
+
+            document.querySelectorAll('.amount')[0].textContent = `R$ ${total.toFixed(2)}`;
+            document.querySelectorAll('.amount')[1].textContent = `R$ ${carolinaTotal.toFixed(2)}`;
+            document.querySelectorAll('.amount')[2].textContent = `R$ ${eduardoTotal.toFixed(2)}`;
+        }
+
+        // Gráfico de categorias
+        function createCategoryChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            const categoryData = {};
+            mockData.expenses.forEach(expense => {
+                categoryData[expense.category] = (categoryData[expense.category] || 0) + expense.amount;
+            });
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(categoryData),
+                    datasets: [{
+                        data: Object.values(categoryData),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF',
+                            '#FF9F40',
+                            '#FF6384'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+        }
+
+        // Gráfico de distribuição por responsável
+        function createResponsibleChart() {
+            const ctx = document.getElementById('responsibleChart').getContext('2d');
+            const responsibleData = {
+                Carolina: mockData.expenses
+                    .filter(expense => expense.payer === 'Carolina')
+                    .reduce((sum, expense) => sum + expense.amount, 0),
+                Eduardo: mockData.expenses
+                    .filter(expense => expense.payer === 'Eduardo')
+                    .reduce((sum, expense) => sum + expense.amount, 0)
+            };
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(responsibleData),
+                    datasets: [{
+                        data: Object.values(responsibleData),
+                        backgroundColor: ['#FF6384', '#36A2EB']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+        }
+
+        // Gráfico de timeline
+        function createTimelineChart() {
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Gastos Totais',
+                        data: months.map(() => Math.random() * 5000 + 3000),
+                        borderColor: '#36A2EB',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'R$ ' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Preencher tabela de despesas
+        function populateExpensesTable() {
+            const tbody = document.getElementById('expensesTable');
+            tbody.innerHTML = '';
+            
+            mockData.expenses.forEach(expense => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${expense.date}</td>
+                    <td>${expense.category}</td>
+                    <td>${expense.type}</td>
+                    <td>R$ ${expense.amount.toFixed(2)}</td>
+                    <td>${expense.generator}</td>
+                    <td>${expense.payer}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Inicializar dashboard
+        window.onload = function() {
+            updateSummaryCards();
+            createCategoryChart();
+            createResponsibleChart();
+            createTimelineChart();
+            populateExpensesTable();
+        };
+    </script>
+</body>
+</html>
